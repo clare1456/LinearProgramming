@@ -13,6 +13,7 @@ class ModelHandler():
     def __init__(self, graph):
         self.graph = graph
         self.build_model()
+        # self.build_3_model()
 
     def build_model(self):
         """
@@ -47,6 +48,46 @@ class ModelHandler():
         model.addConstrs(q[i] >= 0 for i in points)
         ### 5. vehicle number constraint
         model.addConstr(gp.quicksum(x[0, j] for j in self.graph.feasibleNodeSet[0]) <= self.graph.vehicleNum)
+
+        # update model
+        model.update()
+
+        self.model = model
+        return model
+
+    def build_3_model(self):
+        """
+        三下标模型
+        """
+        # building model
+        model = gp.Model('VRPTW_3')
+
+        nodeNum = self.graph.nodeNum
+        points = list(range(nodeNum))
+        K = list(range(self.graph.vehicleNum))
+        A = [(i, j, k) for i in points for j in self.graph.feasibleNodeSet[i] for k in K]
+        t_set = [(i, k) for i in points for k in K]
+
+        ## add variates
+        x = model.addVars(A, vtype=GRB.BINARY, name="x")
+        t = model.addVars(t_set, vtype=GRB.CONTINUOUS, name="t")
+        q = model.addVars(t_set, vtype=GRB.CONTINUOUS, name="q")
+        ## set objective
+        model.modelSense = GRB.MINIMIZE
+        model.setObjective(gp.quicksum(x[i, j, k] * self.graph.disMatrix[i, j] for i, j, k in A))
+        ## set constraints
+        ### 1. flow balance
+        model.addConstrs(gp.quicksum(x[i, j, k] for i in self.graph.availableNodeSet[j]) == gp.quicksum(x[j, i, k] for i in self.graph.feasibleNodeSet[j]) for j in points for k in K)
+        ### 2. pass each point
+        model.addConstrs(gp.quicksum(x[i, j, k] for i in self.graph.availableNodeSet[j] for k in K) >= 1 for j in points) 
+        ### 3. vehilcle number constraint
+        model.addConstrs(gp.quicksum(x[0, j, k] for j in self.graph.feasibleNodeSet[0]) <= 1 for k in K)
+        ### 4. time constraints
+        model.addConstrs(t[i, k] >= self.graph.readyTime[i] for i in points for k in K)
+        model.addConstrs(t[i, k] <= self.graph.dueTime[i] for i in points for k in K)
+        model.addConstrs((x[i, j, k] == 1) >> (t[j, k] >= t[i, k] + self.graph.serviceTime[i] + self.graph.timeMatrix[i, j]) for i, j, k in A if j!=0)
+        ### 5. capacity constraints
+        model.addConstrs(gp.quicksum(self.graph.demand[i] * x[i, j, k] for i in points for j in self.graph.feasibleNodeSet[i]) <= self.graph.capacity for k in K)
 
         # update model
         model.update()
@@ -166,13 +207,15 @@ class ModelHandler():
 
 if __name__ == "__main__":
     # solve model with gurobi solver
-    file_name = "solomon_100/R105.txt"
+    file_name = "solomon_100/r101.txt"
     # 101\102-1s, 101_25-0.02s, 103-200s
     graph = GraphTool.Graph(file_name)
     alg = ModelHandler(graph)
     time1 = time.time()
     routes = alg.run()
     time2 = time.time()
+    for ri in range(len(routes)):
+        print("route {}: {}".format(ri, routes[ri]))
     graph.render(routes)
     print("optimal obj: {}\ntime consumption: {}".format(graph.evaluate(routes), time2-time1))
 
