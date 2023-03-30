@@ -192,12 +192,14 @@ class Labeling():
        
 if __name__ == "__main__":
     # get data, build alg
-    file_name = "solomon_100/c101.txt"
+    file_name = "solomon_100/r101.txt"
     graph = GraphTool.Graph(file_name)
     alg = Labeling(graph=graph, select_num=10)
     # set Dual value
     # Dual = [0] * alg.nodeNum
-    Dual = np.arange(graph.nodeNum)
+    # Dual = np.arange(graph.nodeNum)
+    np.random.seed(1)
+    Dual = np.random.randint(0, 50, graph.nodeNum)
     alg.set_dual(Dual)
     # solve and show result
     routes, objs = alg.run()

@@ -81,35 +81,53 @@ class Graph():
                 else:
                     self.infeasibleNodeSet[i].append(j)
        
-    def evaluate(self, routes, show=False):
+    def evaluate(self, routes, show=False, info = {}):
         obj = 0
         visit_customer = np.zeros(self.nodeNum)
+        loads_record = []
+        times_record = []
+        objs_record = []
         # check each routes
         for route in routes:
             # check capacity constraint
-            load = sum(self.demand[route])
-            if load > self.capacity:
-                print("Infeasible Solution: break capacity constraint")
-                return np.inf
             # check time window / pass all customers
+            loads = []
+            times = []
             t = 0
+            load = 0
             for i in range(1, len(route)):
                 pi = route[i-1]
                 pj = route[i]
                 t_ = t + self.serviceTime[pi] + self.timeMatrix[pi, pj]
                 if t_ > self.dueTime[pj]:
-                    print("Infeasible Solution: break time window")
-                    return np.inf 
+                    # print("Infeasible Solution: break time window")
+                    # return np.inf 
+                    # obj += 100 * (t_ - self.dueTime[pj])
+                    pass
                 t = max(t_, self.readyTime[pj])
+                times.append(t)
+                load += self.demand[pj]
+                loads.append(load)
+                if load > self.capacity:
+                    # print("Infeasible Solution: break capacity constraint")
+                    # return np.inf
+                    obj += 1000 * (load - self.capacity)
+                    pass
                 visit_customer[pj] = 1
+            loads_record.append(loads)
+            times_record.append(times)
             # calculate objective value
             dist = sum(self.disMatrix[route[:-1], route[1:]])
             obj += dist
+            objs_record.append(dist)
         if sum(visit_customer) < self.nodeNum:
             print("Infeasible Solution: haven't visit all points")
             return np.inf
         if show:
             print("Feasible Solution: obj = {}".format(obj))
+        info["loads_record"] = loads_record
+        info["times_record"] = times_record
+        info["objs_record"] = objs_record
         return obj
 
     def render(self, routes=[]):

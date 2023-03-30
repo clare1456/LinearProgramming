@@ -24,7 +24,7 @@ class ColumnGeneration():
             model_handler = ModelHandler(graph)
             self.RLMP = model_handler.build_RLMP_model(graph)
         else:
-            self.RLMP = RLMP
+            self.RLMP = RLMP 
         if SP is None:
             model_handler = ModelHandler(graph)
             self.SP = model_handler.build_SP_model(graph)
@@ -216,7 +216,7 @@ class ColumnGenerationWithLabeling(ColumnGeneration):
             self.add_column_into_RLMP(route, route_length, new_column)
 
 if __name__ == "__main__":
-    file_name = "solomon_100\R105.txt"
+    file_name = "solomon_100\R101.txt"
     graph = GraphTool.Graph(file_name)
     # alg = ColumnGeneration(graph) # result: optimal 828.936, time 359.5s
     alg = ColumnGenerationWithLabeling(graph) # result: optimal 828.936, time 68.0s

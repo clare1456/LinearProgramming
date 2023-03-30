@@ -174,17 +174,15 @@ class Solomon_Insertion():
 
     def run(self):
         min_obj = np.inf
-        # best_routes = None
-        # # try each strategy, select the best result
-        # for init_strategy in range(5):
-        #     self.init_strategy = init_strategy
-        #     routes = self.main_process()
-        #     obj = self.graph.evaluate(routes)
-        #     if obj < min_obj:
-        #         min_obj = obj
-        #         best_routes = routes
-        self.init_strategy = 0
-        best_routes = self.main_process()
+        best_routes = None
+        # try each strategy, select the best result
+        for init_strategy in range(5):
+            self.init_strategy = init_strategy
+            routes = self.main_process()
+            obj = self.graph.evaluate(routes)
+            if obj < min_obj:
+                min_obj = obj
+                best_routes = routes
         return best_routes
 
 if __name__ == "__main__":
@@ -198,6 +196,6 @@ if __name__ == "__main__":
     print("obj = {}".format(obj))
     for ri in range(len(routes)):
         print("route {}: {}".format(ri, routes[ri]))
-    # graph.render(routes)
+    graph.render(routes)
 
 

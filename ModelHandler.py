@@ -43,7 +43,7 @@ class ModelHandler():
         model.addConstrs(t[i] >= self.graph.readyTime[i] for i in points)
         model.addConstrs(t[i] <= self.graph.dueTime[i] for i in points)
         ### 4. capacity constraints
-        model.addConstrs((x[i, j] == 1) >> (q[i] >= q[j] + self.graph.demand[i]) for i, j in A if j!=0)
+        model.addConstrs((x[i, j] == 1) >> (q[j] >= q[i] + self.graph.demand[i]) for i, j in A if j!=0)
         model.addConstrs(q[i] <= self.graph.capacity for i in points)
         model.addConstrs(q[i] >= 0 for i in points)
         ### 5. vehicle number constraint
@@ -200,10 +200,16 @@ class ModelHandler():
         """
         # build model
         self.build_model()
+        # tune the model
+        # self.model.tune()
         # optimize the model
         self.model.optimize()
         # return routes
-        return self.get_routes()
+        if self.model.status == 2:
+            return self.get_routes()
+        else:
+            print("Failed: Model is infeasible")
+            return []
 
 if __name__ == "__main__":
     # solve model with gurobi solver
@@ -216,6 +222,8 @@ if __name__ == "__main__":
     time2 = time.time()
     for ri in range(len(routes)):
         print("route {}: {}".format(ri, routes[ri]))
-    graph.render(routes)
+    info = {}
+    graph.evaluate(routes, info=info)
+    # graph.render(routes)
     print("optimal obj: {}\ntime consumption: {}".format(graph.evaluate(routes), time2-time1))
 
