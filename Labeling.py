@@ -6,20 +6,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import time
+import bitarray
 
 import GraphTool
 # import ModelHandler
 
 class Label():
-    def __init__(self, path, tabu, obj, q, t):
-        self.path = path # current route
+    def __init__(self, city, last_label, tabu, obj, q, t):
+        self.city = city # current city
+        self.last_label = last_label # last label
         self.tabu = tabu # can't visit point list
         self.obj = obj # objective value of label
         self.q = q # current load of route
         self.t = t # start time of node
     
     @staticmethod
-    def if_dominate(l1, l2):
+    def if_dominate(l1, l2, approximate=False):
         """check if l1 dominates l2 or on contrary
 
         Args:
@@ -36,25 +38,16 @@ class Label():
         if l1.t < l2.t:
             dominate_num += 1
         
-        # if dominate_num == 3 and set(l1.path).issubset(l2.path): 
-        if dominate_num == 3 and Label.is_subset(l1.tabu, l2.tabu): 
-        # if dominate_num == 3:
+        if dominate_num == 3 and (approximate or Label.is_subset(l1.tabu, l2.tabu)): 
             return 1
-        # elif dominate_num == 0 and set(l2.path).issubset(l1.path): 
-        elif dominate_num == 0 and Label.is_subset(l2.tabu, l1.tabu): 
-        # elif dominate_num == 0:
+        elif dominate_num == 0 and (approximate or Label.is_subset(l2.tabu, l1.tabu)): 
             return 2
         else:
             return 0
 
     @staticmethod
-    def is_subset(set1, set2):
-        if len(set1) > len(set2):
-            return False
-        for key, value in set1.items():
-            if set2.get(key, 0) == 0:
-                return False
-        return True
+    def is_subset(tabu1, tabu2): 
+        return (tabu1 & (~tabu2)).count() == 0
 
 class Labeling():
     def __init__(self, graph, select_num=None, early_stop=0, outputFlag=True):
@@ -76,14 +69,15 @@ class Labeling():
         initialize variables 
         """
         self.Q = [[] for i in range(self.graph.nodeNum)] # queue for each points, containing part-routes that ends in the point
-        label0 = Label([0], {}, 0, 0, 0)
+        init_tabu = bitarray.bitarray(self.graph.nodeNum)
+        init_tabu ^= init_tabu # set all zero
+        label0 = Label(0, None, init_tabu, 0, 0, 0)
+        self.labelQueue = [label0] # queue for labels
         self.total_label_num = 1 # record
         self.last_label_num = 1 # record
         self.total_dominant_num = 0 # record
         self.best_obj = np.inf # record
         self.timeRecord = 0 # record: for debug
-        self.label_expand(label0)
-        self.last_label_num -= 1
 
     def set_dual(self, Dual):
         self.dualValue = Dual
@@ -107,7 +101,6 @@ class Labeling():
             if flag == 1:
                 self.Q[node].pop(li)
                 self.total_dominant_num += 1
-                self.last_label_num -= 1
             # if l2 dominates l1, not add l1
             elif flag == 2:
                 self.total_dominant_num += 1
@@ -116,7 +109,9 @@ class Labeling():
                 li += 1
         self.Q[node].append(label)
         self.total_label_num += 1
-        self.last_label_num += 1
+        if node != 0:
+            self.labelQueue.append(label) 
+            self.last_label_num += 1
             
     # problem depends
     def label_expand(self, label):
@@ -127,11 +122,11 @@ class Labeling():
         update:
             self.Q (dict[int:List]): queue of node 
         """
-        node = label.path[-1] # node is the current point of label
+        node = label.city # node is the current point of label
         for next_node in self.graph.feasibleNodeSet[node]: # next_node: the next node
             if node == next_node: # avoid circulation
                 continue
-            if next_node in label.path[1:]: # avoid can't visit set
+            if label.tabu[next_node] == 1: # avoid can't visit set
                 continue
             q_ = label.q + self.graph.demand[next_node]
             t_arrive = label.t + self.graph.serviceTime[node] + self.graph.timeMatrix[node, next_node]
@@ -145,22 +140,27 @@ class Labeling():
                     continue
                 if obj_ < self.best_obj: # record best obj
                     self.best_obj = obj_
-            path_ = label.path.copy()
-            path_.append(next_node)
-            # tabu_ = label.tabu.copy()
-            # tabu_[next_node] = 1
-            # for pi in self.graph.infeasibleNodeSet[next_node]:
-            #     tabu_[pi] = 1
-            new_label = Label(path_, label.tabu, obj_, q_, t_)
-            start  = time.time()
-            self.dominant_add(new_label, next_node) # add node and check dominance
+            tabu_ = label.tabu.copy()
+            tabu_[next_node] = 1
+            tabu_ = tabu_ | self.graph.infeasibleBitSet[next_node]
+            start = time.time()
+            new_label = Label(next_node, label, tabu_, obj_, q_, t_)
             self.timeRecord += time.time() - start
+            self.dominant_add(new_label, next_node) # add node and check dominance
     
+    # get route from label
+    def label2route(self, label):
+        route = []
+        while label is not None:
+            route.append(label.city)
+            label = label.last_label
+        return route[::-1]
+
     # output function
     def rank_result(self):
         pareto_labels = self.Q[0] 
         pareto_labels.sort(key=lambda label:label.obj)
-        routes = [label.path for label in pareto_labels]
+        routes = [self.label2route(label) for label in pareto_labels]
         objs = [label.obj for label in pareto_labels]
         return routes, objs
 
@@ -173,26 +173,21 @@ class Labeling():
     def run(self):
         self.initialize() # initialize variables
         # expand labels until empty
-        while True:
-            breakFlag = True
-            for node in range(1, self.graph.nodeNum):
-                if len(self.Q[node]) > 0:
-                    breakFlag = False
-                while self.Q[node]:
-                    label = self.Q[node].pop()
-                    self.label_expand(label)
-                    self.last_label_num -= 1
-            if breakFlag:
-                break
-            if self.outputFlag:
-                self.display_information()
+        while self.labelQueue:
+            label = self.labelQueue.pop()
+            self.last_label_num -= 1
+            self.label_expand(label)
             self.iterCnt += 1
+            if self.outputFlag and self.iterCnt % 500 == 0:
+                self.display_information()
+        if self.outputFlag:
+            self.display_information()
         self.routes, self.objs = self.rank_result()
         return self.routes[:self.select_num], self.objs[:self.select_num] 
        
 if __name__ == "__main__":
     # get data, build alg
-    file_name = "solomon_100/r101.txt"
+    file_name = "solomon_100/R101.txt"
     graph = GraphTool.Graph(file_name)
     alg = Labeling(graph=graph, select_num=10)
     # set Dual value

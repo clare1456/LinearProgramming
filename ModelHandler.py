@@ -118,7 +118,7 @@ class ModelHandler():
         ## set objective
         RLMP.setObjective(gp.quicksum(y[i] * routes_length[i] for i in range(len(routes))), GRB.MINIMIZE)
         ## set constraints
-        RLMP.addConstr(gp.quicksum(y) <= graph.vehicleNum)
+        RLMP.addConstr(gp.quicksum(y) <= len(routes))
         RLMP.addConstrs(gp.quicksum(y[i] * routes_a[i, j] for i in range(len(routes))) >= 1 for j in range(1, graph.nodeNum))
 
         RLMP.setParam("OutputFlag", 0)
