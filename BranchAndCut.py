@@ -150,6 +150,6 @@ class BranchAndCut():
 
 if __name__ == "__main__":
     file_name = "Augerat/A-n32-k5.vrp"
-    graph = GraphTool.GraphForAugerat(file_name)
+    graph = GraphTool.Graph(file_name)
     alg = BranchAndCut(graph)
     alg.run()
