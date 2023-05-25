@@ -516,7 +516,7 @@ class BranchAndPrice():
 if __name__ == "__main__":
     file_name = "solomon_100\R101.txt"
     graph = GraphTool.Graph(file_name)
-    alg = BranchAndPrice(graph) # result: R101 49s optimal 1642.87 二次测试：93s
+    alg = BranchAndPrice(graph) # result: R101 49s optimal 1642.87
     routes = alg.run()
     graph.evaluate(routes, show=True)
     graph.render(routes)

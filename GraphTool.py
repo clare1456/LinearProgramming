@@ -176,6 +176,7 @@ class GraphForAugerat(Graph):
 if __name__ == "__main__":
     file_name = "solomon_100/r101.txt"
     graph = Graph(file_name)
+    graph.render()
 
     # file_name = "Augerat/A-n32-k5.vrp"
     # graph = GraphForAugerat(file_name)

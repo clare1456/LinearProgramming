@@ -384,7 +384,7 @@ if __name__ == "__main__":
     """ VRPTW """
     # get data, build model
     file_name = "solomon_100\C101.txt"
-    graph = GraphTool.Graph(file_name)
+    graph = GraphTool.Graph(file_name, limit_node_num=10)
     model_handler = ModelHandler(graph)
     model = model_handler.build_model()
     # solve model
